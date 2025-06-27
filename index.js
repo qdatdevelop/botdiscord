@@ -1,7 +1,25 @@
-require("dotenv").config();
-const { Client, GatewayIntentBits, Partials } = require("discord.js");
-const fs = require("fs");
 
+require("dotenv").config();
+const fs = require("fs");
+const express = require("express");
+const {
+  Client,
+  GatewayIntentBits,
+  Partials,
+} = require("discord.js");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// ==== KHỞI TẠO EXPRESS WEB SERVER ====
+app.get("/", (req, res) => {
+  res.send("✅ Bot đang hoạt động!");
+});
+app.listen(PORT, () => {
+  console.log(`🌐 Web server đang chạy tại cổng ${PORT}`);
+});
+
+// ==== KHỞI TẠO DISCORD BOT ====
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -12,29 +30,28 @@ const client = new Client({
   partials: [Partials.Message, Partials.Reaction, Partials.User],
 });
 
-// === ID CẤU HÌNH ===
-const VERIFY_CHANNEL_ID = "1388212621710332099"; // Kênh nhận ảnh xác minh
-const VERIFIED_ROLE_ID = "1388180240425156829";  // Role xác minh sẽ được cấp
+// ==== CẤU HÌNH ====
+const VERIFY_CHANNEL_ID = "1388212621710332099"; // Kênh xác minh
+const VERIFIED_ROLE_ID = "1388180240425156829";  // Role cần cấp
 const ALLOWED_STAFF_IDS = [
   "1388192256791416975", // ID admin
   "1388187078319407174", // ID mod
 ];
 
-// === Biến tạm giữ ảnh chờ xác minh ===
+// ==== BỘ NHỚ TẠM CHO ẢNH ====
 let pending = {};
 
-// === Khi bot hoạt động ===
-client.on("ready", () => {
-  console.log(`✅ Bot đã đăng nhập: ${client.user.tag}`);
+// ==== BOT ONLINE ====
+client.once("ready", () => {
+  console.log(`🤖 Bot đã đăng nhập: ${client.user.tag}`);
 
-  // Khôi phục ảnh chờ xác minh từ file
   if (fs.existsSync("data.json")) {
     pending = JSON.parse(fs.readFileSync("data.json"));
     console.log(`📦 Đã khôi phục ${Object.keys(pending).length} ảnh chờ xác minh`);
   }
 });
 
-// === Khi có ảnh gửi vào kênh xác minh ===
+// ==== XỬ LÝ GỬI ẢNH ====
 client.on("messageCreate", async (message) => {
   if (message.channel.id !== VERIFY_CHANNEL_ID || message.author.bot) return;
 
@@ -47,7 +64,7 @@ client.on("messageCreate", async (message) => {
   }
 });
 
-// === Khi có người bấm nút xác minh ===
+// ==== XỬ LÝ PHẢN ỨNG ====
 client.on("messageReactionAdd", async (reaction, user) => {
   try {
     if (reaction.partial) await reaction.fetch();
@@ -58,7 +75,6 @@ client.on("messageReactionAdd", async (reaction, user) => {
     const targetUserId = pending[messageId];
     if (!targetUserId) return;
 
-    // Kiểm tra người phản ứng có quyền xác minh không
     if (!ALLOWED_STAFF_IDS.includes(user.id)) {
       console.log(`⛔ ${user.tag} không có quyền xác minh.`);
       return;
@@ -79,9 +95,9 @@ client.on("messageReactionAdd", async (reaction, user) => {
     delete pending[messageId];
     fs.writeFileSync("data.json", JSON.stringify(pending, null, 2));
   } catch (err) {
-    console.error("❗ Lỗi khi xử lý phản ứng:", err);
+    console.error("❗ Lỗi khi xử lý reaction:", err);
   }
 });
 
-// === Bắt đầu chạy bot ===
+// ==== KHỞI ĐỘNG BOT ====
 client.login(process.env.TOKEN);
