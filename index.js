@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 const fs = require("fs");
 const express = require("express");
@@ -6,12 +5,13 @@ const {
   Client,
   GatewayIntentBits,
   Partials,
+  PermissionsBitField,
 } = require("discord.js");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ==== KHỞI TẠO EXPRESS WEB SERVER ====
+// ==== WEB SERVER KEEP-ALIVE ====
 app.get("/", (req, res) => {
   res.send("✅ Bot đang hoạt động!");
 });
@@ -19,7 +19,7 @@ app.listen(PORT, () => {
   console.log(`🌐 Web server đang chạy tại cổng ${PORT}`);
 });
 
-// ==== KHỞI TẠO DISCORD BOT ====
+// ==== DISCORD BOT CONFIG ====
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -30,18 +30,15 @@ const client = new Client({
   partials: [Partials.Message, Partials.Reaction, Partials.User],
 });
 
-// ==== CẤU HÌNH ====
+// ==== CÁC ID QUAN TRỌNG ====
 const VERIFY_CHANNEL_ID = "1388212621710332099"; // Kênh xác minh
-const VERIFIED_ROLE_ID = "1388180240425156829";  // Role cần cấp
-const ALLOWED_STAFF_IDS = [
-  "1388192256791416975", // ID admin
-  "1388187078319407174", // ID mod
-];
+const VERIFIED_ROLE_ID = "1388180240425156829";  // Role xác minh
+const LOG_CHANNEL_ID = "1388212907350691992";    // Kênh log kết quả
 
-// ==== BỘ NHỚ TẠM CHO ẢNH ====
+// ==== DỮ LIỆU TẠM ====
 let pending = {};
 
-// ==== BOT ONLINE ====
+// ==== BOT KHỞI ĐỘNG ====
 client.once("ready", () => {
   console.log(`🤖 Bot đã đăng nhập: ${client.user.tag}`);
 
@@ -51,7 +48,7 @@ client.once("ready", () => {
   }
 });
 
-// ==== XỬ LÝ GỬI ẢNH ====
+// ==== KHI NGƯỜI DÙNG GỬI ẢNH ====
 client.on("messageCreate", async (message) => {
   if (message.channel.id !== VERIFY_CHANNEL_ID || message.author.bot) return;
 
@@ -64,7 +61,7 @@ client.on("messageCreate", async (message) => {
   }
 });
 
-// ==== XỬ LÝ PHẢN ỨNG ====
+// ==== XỬ LÝ PHẢN ỨNG ✅ ❌ ====
 client.on("messageReactionAdd", async (reaction, user) => {
   try {
     if (reaction.partial) await reaction.fetch();
@@ -75,21 +72,33 @@ client.on("messageReactionAdd", async (reaction, user) => {
     const targetUserId = pending[messageId];
     if (!targetUserId) return;
 
-    if (!ALLOWED_STAFF_IDS.includes(user.id)) {
+    const guild = reaction.message.guild;
+    const memberReacting = await guild.members.fetch(user.id);
+
+    // 🔐 CHỈ ADMIN MỚI ĐƯỢC PHẢN ỨNG XÁC MINH
+    if (!memberReacting.permissions.has(PermissionsBitField.Flags.Administrator)) {
       console.log(`⛔ ${user.tag} không có quyền xác minh.`);
       return;
     }
 
-    const guild = reaction.message.guild;
-    const member = await guild.members.fetch(targetUserId);
+    const targetMember = await guild.members.fetch(targetUserId);
+    const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
 
     if (reaction.emoji.name === "✅") {
-      await member.roles.add(VERIFIED_ROLE_ID);
+      await targetMember.roles.add(VERIFIED_ROLE_ID);
       await reaction.message.reply(`<@${targetUserId}> đã được xác minh ✅`);
-      console.log(`✅ Cấp role cho ${targetUserId}`);
+      console.log(`✅ Đã cấp role cho ${targetUserId}`);
+
+      if (logChannel) {
+        logChannel.send(`✅ **<@${targetUserId}> đã được xác minh bởi <@${user.id}>**`);
+      }
     } else if (reaction.emoji.name === "❌") {
       await reaction.message.reply(`<@${targetUserId}> bị từ chối xác minh ❌`);
       console.log(`❌ Từ chối xác minh ${targetUserId}`);
+
+      if (logChannel) {
+        logChannel.send(`❌ **<@${targetUserId}> bị từ chối bởi <@${user.id}>**`);
+      }
     }
 
     delete pending[messageId];
@@ -99,5 +108,5 @@ client.on("messageReactionAdd", async (reaction, user) => {
   }
 });
 
-// ==== KHỞI ĐỘNG BOT ====
+// ==== CHẠY BOT ====
 client.login(process.env.TOKEN);
