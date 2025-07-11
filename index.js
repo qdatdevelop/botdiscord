@@ -12,8 +12,14 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
   ],
-  partials: [Partials.Message, Partials.Reaction, Partials.User],
+  partials: [
+    Partials.Message,
+    Partials.Channel,
+    Partials.Reaction,
+    Partials.User,
+  ],
 });
 
 // ==== Web giữ bot sống ====
@@ -27,10 +33,10 @@ client.once("ready", async () => {
 
   // ==== Chạy các tác vụ khởi động ====
   for (const handler of handlers) {
-    if (handler.runOnReady) {
+    if (handler.runOnReady && typeof handler.onReady === "function") {
       try {
         console.log(`${handler.icon} Đang chạy: ${handler.name}`);
-        await handler.handler(client);
+        await handler.onReady(client); // ✅ Gọi đúng hàm
         console.log(`${handler.icon} ✅ Xong: ${handler.name}`);
       } catch (err) {
         console.error(`❌ Lỗi khi chạy ${handler.name}: ${err.message}`);
@@ -43,12 +49,14 @@ client.once("ready", async () => {
     if (handler.event) {
       client.on(handler.event, (...args) => {
         try {
-          handler.handler(...args);
+          handler.handler.execute(...args); // ✅ Gọi đúng method execute
         } catch (err) {
           console.error(`❌ Lỗi trong ${handler.name}: ${err.message}`);
         }
       });
-      console.log(`${handler.icon} 📩 Đăng ký sự kiện ${handler.event}: ${handler.name}`);
+      console.log(
+        `${handler.icon} 📩 Đăng ký sự kiện ${handler.event}: ${handler.name}`,
+      );
     }
   }
 });

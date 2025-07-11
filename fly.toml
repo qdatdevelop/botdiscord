@@ -1,0 +1,21 @@
+app = 'botdiscord-cool-tree-4092'
+primary_region = 'sin'
+
+[build]
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false      # ✅ Đúng kiểu dữ liệu
+  auto_start_machines = true
+  min_machines_running = 1        # ✅ Đảm bảo luôn có 1 máy chạy
+  processes = ['app']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+[processes]
+app = "node index.js"
+worker = "node index.js"

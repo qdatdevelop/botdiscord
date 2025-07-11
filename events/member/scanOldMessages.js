@@ -11,7 +11,7 @@ const {
   EMOJI_VERIFY,
   EMOJI_REJECT,
   PENDING_DATA_FILE,
-} = require("../config/constants");
+} = require("../../config/constants");
 
 module.exports = async (client) => {
   const pending = fs.existsSync(PENDING_DATA_FILE)
